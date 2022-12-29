@@ -29,17 +29,21 @@ int main()
 
 			}
 			receiver.send(zmq::buffer("Hello from thread 1"), zmq::send_flags::none);
-			std::cout << "Exit thread 1\n";
+			std::cout << "Exit thread 1\n";  
 		});
 
 	zmq::socket_t sock(ctx, zmq::socket_type::pair);
+	zmq::socket_t py_sock(ctx, zmq::socket_type::pair);
 	sock.bind("inproc://test");
-	sock.connect("tcp://localhost:5555");
+	py_sock.connect("tcp://localhost:5555");
 	
 	TestRecord person;
 	auto sbuf = msgpack::pack(person);
 	
 	sock.send(zmq::message_t(sbuf), zmq::send_flags::none);
+
+	py_sock.send(zmq::message_t(sbuf), zmq::send_flags::none);
+
 	
 	std::this_thread::sleep_for(std::chrono::seconds(2));
 	sock.send(zmq::message_t(sbuf), zmq::send_flags::none);
@@ -47,10 +51,8 @@ int main()
 	t1.join();
 	std::this_thread::sleep_for(std::chrono::seconds(2));
 	auto msg = zmq::message_t();
-	auto received = sock.recv(msg, zmq::recv_flags::none);
-	std::cout << "Received " << msg.to_string() << "\n";
 
-	received = sock.recv(msg, zmq::recv_flags::dontwait);
+	auto received = sock.recv(msg, zmq::recv_flags::dontwait);
 	if (received.has_value()) {
 		std::cout << "Received " << msg.to_string() << "\n";
 	}

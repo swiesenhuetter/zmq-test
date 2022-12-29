@@ -17,4 +17,3 @@ for request in range(10):
     for unpacked in unpacker:
         print(unpacked)    
     
-    print(f"Received: {message}")
