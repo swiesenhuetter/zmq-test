@@ -5,6 +5,13 @@ VisualStudioVersion = 17.4.33205.214
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ZeroMqService", "ZeroMqService.vcxproj", "{491CD626-891F-48C5-9AEA-828CD5D7C49A}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{A864EE5C-5C01-47DF-ADB6-C6E7DD9ED9A1}"
+	ProjectSection(SolutionItems) = preProject
+		.gitignore = .gitignore
+		client.py = client.py
+		vcpkg.json = vcpkg.json
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64

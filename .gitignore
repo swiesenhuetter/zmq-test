@@ -3,5 +3,7 @@ Debug/
 Release/
 vcpkg_installed/
 .vs/
+.idea/
+
 
 
