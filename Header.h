@@ -26,6 +26,14 @@ public:
 	
 };
 
+struct EndCmd {
+	const std::string cmd = "END";
+	template<class T>
+	void pack(T& packer) {
+		packer(cmd);
+	}
+};
+
 
 std::wostream& operator<<(std::wostream& os, const TestRecord& rec)
 {

@@ -15,5 +15,6 @@ for request in range(10):
     unpack_data = io.BytesIO(message)
     unpacker = msgpack.Unpacker(unpack_data, raw=False)
     for unpacked in unpacker:
-        print(unpacked)    
-    
+        print(unpacked)
+        if unpacked == "END":
+            exit(0)
