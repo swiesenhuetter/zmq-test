@@ -453,64 +453,47 @@ void Packer::pack_type(const double &value) {
   }
 }
 
-template<>
-inline
-void Packer::pack_type(const std::string& value) {
+
+template <typename T>
+void pack_string(const std::basic_string<T>& value, std::vector<uint8_t>& serialized) {
     if (value.size() < 32) {
-        serialized_object.emplace_back(uint8_t(value.size()) | 0b10100000);
+        serialized.emplace_back(uint8_t(value.size()) | 0b10100000);
     }
     else if (value.size() < std::numeric_limits<uint8_t>::max()) {
-        serialized_object.emplace_back(str8);
-        serialized_object.emplace_back(uint8_t(value.size()));
+        serialized.emplace_back(str8);
+        serialized.emplace_back(uint8_t(value.size()));
     }
     else if (value.size() < std::numeric_limits<uint16_t>::max()) {
-        serialized_object.emplace_back(str16);
+        serialized.emplace_back(str16);
         for (auto i = sizeof(uint16_t); i > 0; --i) {
-            serialized_object.emplace_back(uint8_t(value.size() >> (8U * (i - 1)) & 0xff));
+            serialized.emplace_back(uint8_t(value.size() >> (8U * (i - 1)) & 0xff));
         }
     }
     else if (value.size() < std::numeric_limits<uint32_t>::max()) {
-        serialized_object.emplace_back(str32);
+        serialized.emplace_back(str32);
         for (auto i = sizeof(uint32_t); i > 0; --i) {
-            serialized_object.emplace_back(uint8_t(value.size() >> (8U * (i - 1)) & 0xff));
+            serialized.emplace_back(uint8_t(value.size() >> (8U * (i - 1)) & 0xff));
         }
     }
     else {
         return; // Give up if string is too long
     }
     for (char i : value) {
-        serialized_object.emplace_back(static_cast<uint8_t>(i));
+        serialized.emplace_back(static_cast<uint8_t>(i));
     }
+
+}
+
+template<>
+inline
+void Packer::pack_type(const std::string& value) {
+	pack_string(value, serialized_object);
 }
 
 template<>
 inline
 void Packer::pack_type(const std::u8string& value) {
-    if (value.size() < 32) {
-        serialized_object.emplace_back(uint8_t(value.size()) | 0b10100000);
-    }
-    else if (value.size() < std::numeric_limits<uint8_t>::max()) {
-        serialized_object.emplace_back(str8);
-        serialized_object.emplace_back(uint8_t(value.size()));
-    }
-    else if (value.size() < std::numeric_limits<uint16_t>::max()) {
-        serialized_object.emplace_back(str16);
-        for (auto i = sizeof(uint16_t); i > 0; --i) {
-            serialized_object.emplace_back(uint8_t(value.size() >> (8U * (i - 1)) & 0xff));
-        }
-    }
-    else if (value.size() < std::numeric_limits<uint32_t>::max()) {
-        serialized_object.emplace_back(str32);
-        for (auto i = sizeof(uint32_t); i > 0; --i) {
-            serialized_object.emplace_back(uint8_t(value.size() >> (8U * (i - 1)) & 0xff));
-        }
-    }
-    else {
-        return; // Give up if string is too long
-    }
-    for (char i : value) {
-        serialized_object.emplace_back(static_cast<uint8_t>(i));
-    }
+    pack_string(value, serialized_object);
 }
 
 template<>
@@ -699,6 +682,45 @@ class Unpacker {
         map.insert_or_assign(key, value);
       }
     }
+  }
+
+  template <typename T>
+  void unpack_string(std::basic_string<T>& string)
+  {
+      std::size_t str_size = 0;
+      if (safe_data() == str32) {
+          safe_increment();
+          for (auto i = sizeof(uint32_t); i > 0; --i) {
+              str_size += uint32_t(safe_data()) << 8 * (i - 1);
+              safe_increment();
+          }
+      }
+      else if (safe_data() == str16) {
+          safe_increment();
+          for (auto i = sizeof(uint16_t); i > 0; --i) {
+              str_size += uint16_t(safe_data()) << 8 * (i - 1);
+              safe_increment();
+          }
+      }
+      else if (safe_data() == str8) {
+          safe_increment();
+          for (auto i = sizeof(uint8_t); i > 0; --i) {
+              str_size += uint8_t(safe_data()) << 8 * (i - 1);
+              safe_increment();
+          }
+      }
+      else {
+          str_size = safe_data() & 0b00011111;
+          safe_increment();
+      }
+      if (data_pointer + str_size <= data_end) {
+          string = std::basic_string<T>{ data_pointer, data_pointer + str_size };
+          safe_increment(str_size);
+      }
+      else {
+          ec = UnpackerError::OutOfRange;
+      }
+
   }
 };
 
@@ -985,78 +1007,14 @@ void Unpacker::unpack_type(double &value) {
 template<>
 inline
 void Unpacker::unpack_type(std::string &value) {
-  std::size_t str_size = 0;
-  if (safe_data() == str32) {
-    safe_increment();
-    for (auto i = sizeof(uint32_t); i > 0; --i) {
-      str_size += uint32_t(safe_data()) << 8 * (i - 1);
-      safe_increment();
-    }
-  } else if (safe_data() == str16) {
-    safe_increment();
-    for (auto i = sizeof(uint16_t); i > 0; --i) {
-      str_size += uint16_t(safe_data()) << 8 * (i - 1);
-      safe_increment();
-    }
-  } else if (safe_data() == str8) {
-    safe_increment();
-    for (auto i = sizeof(uint8_t); i > 0; --i) {
-      str_size += uint8_t(safe_data()) << 8 * (i - 1);
-      safe_increment();
-    }
-  } else {
-    str_size = safe_data() & 0b00011111;
-    safe_increment();
-  }
-  if (data_pointer + str_size <= data_end) {
-    value = std::string{data_pointer, data_pointer + str_size};
-    safe_increment(str_size);
-  } else {
-    ec = UnpackerError::OutOfRange;
-  }
+	unpack_string(value);
 }
-
 
 template<>
 inline
 void Unpacker::unpack_type(std::u8string& value) {
-    std::size_t str_size = 0;
-    if (safe_data() == str32) {
-        safe_increment();
-        for (auto i = sizeof(uint32_t); i > 0; --i) {
-            str_size += uint32_t(safe_data()) << 8 * (i - 1);
-            safe_increment();
-        }
-    }
-    else if (safe_data() == str16) {
-        safe_increment();
-        for (auto i = sizeof(uint16_t); i > 0; --i) {
-            str_size += uint16_t(safe_data()) << 8 * (i - 1);
-            safe_increment();
-        }
-    }
-    else if (safe_data() == str8) {
-        safe_increment();
-        for (auto i = sizeof(uint8_t); i > 0; --i) {
-            str_size += uint8_t(safe_data()) << 8 * (i - 1);
-            safe_increment();
-        }
-    }
-    else {
-        str_size = safe_data() & 0b00011111;
-        safe_increment();
-    }
-    if (data_pointer + str_size <= data_end) {
-        value = std::u8string{ data_pointer, data_pointer + str_size };
-        safe_increment(str_size);
-    }
-    else {
-        ec = UnpackerError::OutOfRange;
-    }
+    unpack_string(value);
 }
-
-
-
 
 template<>
 inline
