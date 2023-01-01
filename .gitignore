@@ -4,6 +4,4 @@ Release/
 vcpkg_installed/
 .vs/
 .idea/
-
-
-
+*.user
