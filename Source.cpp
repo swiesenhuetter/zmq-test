@@ -29,11 +29,15 @@ int main()
 
 			}
 			receiver.send(zmq::buffer("Hello from thread 1"), zmq::send_flags::none);
-			std::cout << "Exit thread 1\n";  
+			std::cout << "Exit thread 1\n"; 
+			receiver.close();
 		});
 
 	zmq::socket_t sock(ctx, zmq::socket_type::pair);
 	zmq::socket_t py_sock(ctx, zmq::socket_type::pair);
+	// discards unsent messages when the socket is closed (when no python client is connected)
+	py_sock.set(zmq::sockopt::linger, 0);
+
 	sock.bind("inproc://test");
 	py_sock.connect("tcp://localhost:5555");
 	
@@ -61,4 +65,8 @@ int main()
 		std::cout << "No message received\n";
 	}
 	std::cout << "Received " << msg.to_string() << "\n";
+	
+	py_sock.close();
+	sock.close();
+	ctx.close();
 }
